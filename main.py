@@ -153,8 +153,8 @@ class Pac:
             return
         nx = self.x + self.dir[0]*self.SPEED
         ny = self.y + self.dir[1]*self.SPEED
-        if nx<0: nx=W-1
-        if nx>=W: nx=0
+        if nx<0: nx+=W
+        if nx>=W: nx-=W
         if tile_free(maze, self.col()+self.dir[0], self.row()+self.dir[1]):
             self.x,self.y = nx,ny
         else:
@@ -170,7 +170,7 @@ class Pac:
             f = min(self.dframe,40)
             pygame.draw.circle(surf,(max(0,255-f*6),max(0,220-f*6),0),(px,py),max(1,r-f//2))
             return
-        ang = {RIGHT:0,DOWN:90,LEFT:180,UP:270}.get(self.dir, 0)
+        ang = {RIGHT:0,DOWN:270,LEFT:180,UP:90}.get(self.dir, 0)
         mo  = int(38*self.mouth) if self.dir != (0,0) else 10
         pts = [(px,py)]
         start = math.radians(ang+mo); end = math.radians(ang+360-mo)
@@ -178,13 +178,13 @@ class Pac:
             a = start+(end-start)*i/36
             pts.append((px+r*math.cos(a), py-r*math.sin(a)))
         pygame.draw.polygon(surf, YELL, pts)
-        ex = {RIGHT:(-2,-r//2),LEFT:(-2,-r//2),UP:(-r//3,-r//3),DOWN:(r//3,-r//3)}.get(self.dir,(0,-r//2))
+        ex = {RIGHT:(-2,-r//2),LEFT:(2,-r//2),UP:(-r//2,2),DOWN:(r//2,-2)}.get(self.dir,(0,-r//2))
         pygame.draw.circle(surf, BLACK, (px+ex[0], py+ex[1]), 2)
 
 class Ghost:
     def __init__(self, idx, maze):
         self.idx=idx; self.color=GCOLS[idx]; self.maze=maze
-        self.homes=[(10,10),(9,10),(10,10),(11,10)]
+        self.homes=[(10,10),(10,10),(10,10),(10,10)]
         self.reset()
 
     def reset(self):
@@ -213,42 +213,56 @@ class Ghost:
 
     def eaten(self): self.scared=False; self.returning=True
 
-    def choose_dir(self, pc, pr):
+    def choose_dir(self, pac):
         if self.returning:
             hx,hy=self.homes[self.idx]
             if self.col()==hx and self.row()==hy:
                 self.returning=False; self.released=True; return
             path=bfs(self.maze,self.col(),self.row(),hx,hy,allow_door=True)
             if path: self.dir=path[0]; return
-        if self.scared:
-            opts=[d for d in DIRS if d!=(-self.dir[0],-self.dir[1]) and tile_free(self.maze,self.col()+d[0],self.row()+d[1])]
-            if not opts: opts=[d for d in DIRS if tile_free(self.maze,self.col()+d[0],self.row()+d[1])]
+        
+        in_house = 8 <= self.col() <= 12 and 9 <= self.row() <= 10
+        opts = [d for d in DIRS if d != (-self.dir[0], -self.dir[1]) and tile_free(self.maze, self.col()+d[0], self.row()+d[1], allow_door=in_house)]
+        if not opts: opts = [d for d in DIRS if tile_free(self.maze, self.col()+d[0], self.row()+d[1], allow_door=in_house)]
+        
+        if self.scared and not in_house:
             if opts: self.dir=random.choice(opts)
             return
-        corners=[(1,1),(COLS-2,1),(1,ROWS-2),(COLS-2,ROWS-2)]
-        tx,ty = pc,pr
-        if self.idx==1: tx+=self.dir[0]*4; ty+=self.dir[1]*4
-        elif self.idx==2: tx=COLS-1-pc
-        elif self.idx==3:
-            if abs(self.col()-pc)+abs(self.row()-pr)<8: tx,ty=corners[3]
-        tx,ty = max(0,min(COLS-1,tx)),max(0,min(ROWS-1,ty))
-        path=bfs(self.maze,self.col(),self.row(),tx,ty)
-        if path: self.dir=path[0]
 
-    def update(self, pc, pr):
+        if in_house:
+            tx, ty = 10, 8
+        else:
+            pc, pr = pac.col(), pac.row()
+            tx, ty = pc, pr
+            if self.idx == 1: tx += pac.dir[0]*4; ty += pac.dir[1]*4
+            elif self.idx == 2: tx = COLS-1-pc
+            elif self.idx == 3:
+                if abs(self.col()-pc) + abs(self.row()-pr) < 8: tx, ty = 1, ROWS-2
+            
+        if opts:
+            best_d = None; best_o = opts[0]
+            for o in opts:
+                dist = (self.col()+o[0] - tx)**2 + (self.row()+o[1] - ty)**2
+                if best_d is None or dist < best_d:
+                    best_d = dist; best_o = o
+            self.dir = best_o
+
+    def update(self, pac):
         if not self.released:
             self.release_t-=1
             if self.release_t<=0: self.released=True
             return
         speed = 3.5 if self.returning else (1.1 if self.scared else 1.8)
-        if self.at_center(): self.choose_dir(pc,pr)
+        if self.at_center(): self.choose_dir(pac)
         if self.scared:
             self.scared_t-=1
             if self.scared_t<=0: self.scared=False
         nx=self.x+self.dir[0]*speed; ny=self.y+self.dir[1]*speed
-        if nx<0: nx=W-1
-        if nx>=W: nx=0
-        if tile_free(self.maze,self.col()+self.dir[0],self.row()+self.dir[1],allow_door=self.returning):
+        if nx<0: nx+=W
+        if nx>=W: nx-=W
+        
+        in_house = 8 <= self.col() <= 12 and 9 <= self.row() <= 10
+        if tile_free(self.maze,self.col()+self.dir[0],self.row()+self.dir[1],allow_door=self.returning or in_house):
             self.x,self.y=nx,ny
         else:
             cx,cy=self.center(); self.x,self.y=cx,cy
@@ -417,7 +431,7 @@ class Game:
                 if self.freeze>0: self.freeze-=1
                 else:
                     self.pac.update(self.maze)
-                    for g in self.ghosts: g.update(self.pac.col(),self.pac.row())
+                    for g in self.ghosts: g.update(self.pac)
                     self._check_dots(); self._check_ghosts()
                     if self.dots<=0:
                         self.hi=max(self.hi,self.score); self.state="win"; self.freeze=120
