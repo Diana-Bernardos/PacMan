@@ -1,0 +1,97 @@
+# 🎮 PAC-MAN — Python Edition
+### Portfolio Project · Python + Pygame
+
+---
+
+## 🚀 Instalación rápida
+
+### 1. Requisitos previos
+Asegúrate de tener **Python 3.8+** instalado:
+```bash
+python --version
+```
+
+### 2. Instalar dependencias
+```bash
+pip install -r requirements.txt
+```
+O directamente:
+```bash
+pip install pygame numpy
+```
+
+### 3. ¡Jugar!
+```bash
+python main.py
+```
+
+---
+
+## 🕹️ Controles
+
+| Tecla | Acción |
+|-------|--------|
+| `↑ ↓ ← →` | Mover a Pac-Man |
+| `W A S D`  | Mover a Pac-Man (alternativo) |
+| `P`        | Pausar / Reanudar |
+| `SPACE / ENTER` | Confirmar / Empezar |
+| `ESC`      | Salir |
+
+---
+
+## 🎯 Reglas del juego
+
+- **Puntos (·)** — 10 puntos cada uno
+- **Power Pellet (●)** — 50 puntos + los fantasmas se asustan
+- **Comer fantasma asustado** — 200 / 400 / 800 / 1600 / 3200 pts (combo)
+- Recoge **todos los puntos** del mapa para avanzar de nivel
+- Tienes **3 vidas** — ¡no dejes que te atrapen!
+
+---
+
+## 👻 Los Fantasmas
+
+| Fantasma | Color  | Comportamiento |
+|----------|--------|----------------|
+| **Blinky** | Rojo   | Te persigue directamente |
+| **Pinky**  | Rosa   | Intenta cortarte el paso |
+| **Inky**   | Cyan   | Movimiento en espejo |
+| **Clyde**  | Naranja| Huye cuando se acerca |
+
+Cuando comes un **Power Pellet** los fantasmas se vuelven **azules y vulnerables** durante 8 segundos. ¡Cómelos para conseguir puntos extra!
+
+---
+
+## 📁 Estructura del proyecto
+
+```
+pacman/
+├── main.py           ← Juego completo (un solo archivo)
+├── requirements.txt  ← Dependencias
+└── README.md         ← Esta guía
+```
+
+---
+
+## 🛠️ Tecnologías
+
+- **Python 3.8+**
+- **Pygame** — Motor de juego, ventana, inputs, render
+- **NumPy** — Síntesis de sonido procedural
+
+---
+
+## ✨ Características técnicas
+
+- 🔊 **Sonido procedural** — Efectos de sonido generados con NumPy (sin archivos de audio externos)
+- 🌟 **Partículas** — Sistema de partículas para efectos visuales
+- 💡 **Paredes con glow** — Efecto de brillo en los bordes de las paredes
+- 👻 **IA de fantasmas** — BFS (búsqueda en anchura) para pathfinding
+- 🎯 **Comportamientos únicos** — Cada fantasma tiene su propia lógica
+- ⚡ **Combos** — Multiplicador de puntos por comer varios fantasmas seguidos
+- 📈 **Progresión** — La velocidad aumenta con cada nivel
+- 🏆 **High Score** — Guarda la puntuación más alta de la sesión
+
+---
+
+*Proyecto de portfolio — desarrollado con Python & Pygame*
