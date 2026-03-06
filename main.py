@@ -1,7 +1,59 @@
 import pygame, sys, math, random
 from collections import deque
 
+# optional numpy import; game still works without sound if it's missing
+try:
+    import numpy as np
+except ImportError:
+    np = None
+
+# initialize audio before the rest of pygame (stereo output)
+pygame.mixer.pre_init(44100, -16, 2, 512)
 pygame.init()
+
+# sound helper -------------------------------------------------------------
+
+def _make_tone_with_numpy(freq, duration=0.1, volume=0.5):
+    """Sine wave via numpy, returned as pygame Sound (stereo)."""
+    sr = 44100
+    t = np.linspace(0, duration, int(sr * duration), False)
+    wave = np.sin(freq * 2 * math.pi * t)
+    mono = (wave * 32767).astype(np.int16)
+    # duplicate channels for stereo
+    arr = np.column_stack((mono, mono))
+    snd = pygame.sndarray.make_sound(arr)
+    snd.set_volume(volume)
+    return snd
+
+
+def _make_tone_no_numpy(freq, duration=0.1, volume=0.5):
+    """Pure-Python sine wave generation (fallback, stereo)."""
+    sr = 44100
+    count = int(sr * duration)
+    # two bytes per sample per channel, two channels
+    buf = bytearray(count * 4)
+    for i in range(count):
+        t = i / sr
+        v = math.sin(freq * 2 * math.pi * t) * volume
+        sample = int(v * 32767)
+        # write same sample to left and right (little endian)
+        buf[4*i:4*i+2] = sample.to_bytes(2, 'little', signed=True)
+        buf[4*i+2:4*i+4] = sample.to_bytes(2, 'little', signed=True)
+    return pygame.mixer.Sound(buffer=buf)
+
+# choose appropriate maker based on numpy availability
+_maker = _make_tone_with_numpy if np is not None else _make_tone_no_numpy
+
+# pre-generate commonly used effects
+try:
+    SND_DOT       = _maker(880, 0.04, 0.2)
+    SND_PELLET    = _maker(440, 0.10, 0.3)
+    SND_EATGHOST  = _maker(1200, 0.15, 0.5)
+    SND_DIE       = _maker(200,  0.50, 0.5)
+except Exception as e:
+    # sound generation failed, continue without audio but notify user
+    print("[PAC-MAN] warning: audio disabled (", e, ")")
+    SND_DOT = SND_PELLET = SND_EATGHOST = SND_DIE = None
 
 # ── Constantes ────────────────────────────────────────────────────────────────
 TILE, COLS, ROWS = 24, 21, 23
@@ -270,6 +322,8 @@ class Game:
         self.ghosts=[Ghost(i,self.maze) for i in range(4)]
         self.score=0; self.lives=3; self.level=1; self.freeze=0; self.combo=0
         self.dots=sum(c in(2,3) for row in self.maze for c in row)
+        # play a quick sound to indicate game start/reload
+        if SND_DOT: SND_DOT.play()
 
     def _txt(self,t,f,col,cx,cy):
         s=f.render(t,True,col); self.screen.blit(s,s.get_rect(center=(cx,cy)))
@@ -319,9 +373,12 @@ class Game:
         col,row=self.pac.col(),self.pac.row()
         if 0<=row<ROWS and 0<=col<COLS:
             c=self.maze[row][col]
-            if c==2: self.maze[row][col]=0; self.score+=10; self.dots-=1
+            if c==2:
+                self.maze[row][col]=0; self.score+=10; self.dots-=1
+                if SND_DOT: SND_DOT.play()
             elif c==3:
                 self.maze[row][col]=0; self.score+=50; self.dots-=1; self.combo=0
+                if SND_PELLET: SND_PELLET.play()
                 for g in self.ghosts: g.frighten()
 
     def _check_ghosts(self):
@@ -331,8 +388,10 @@ class Game:
                 if g.scared:
                     g.eaten(); self.combo+=1
                     self.score+=200*(2**min(self.combo-1,4))
+                    if SND_EATGHOST: SND_EATGHOST.play()
                 elif self.state=="play":
                     self.pac.alive=False; self.state="dying"; self.freeze=75
+                    if SND_DIE: SND_DIE.play()
 
     def run(self):
         while True:

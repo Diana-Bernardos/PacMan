@@ -15,10 +15,12 @@ python --version
 ```bash
 pip install -r requirements.txt
 ```
-O directamente:
+Por defecto el archivo `requirements.txt` incluye `pygame` y `numpy`.
+Si no quieres instalar NumPy (sólo se usa para generar los efectos de sonido) basta con:
 ```bash
-pip install pygame numpy
+pip install pygame
 ```
+El juego funciona igualmente, se reproducirán sonidos simples con un generador interno.
 
 ### 3. ¡Jugar!
 ```bash
